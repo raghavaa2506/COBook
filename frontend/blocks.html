@@ -1,0 +1,244 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COBOL Program Visualization</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card {
+            background-color: #fff;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .card-header h2 {
+            margin: 0;
+        }
+        
+        .flowchart {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .flowchart-step {
+            background-color: #e8f5e9;
+            padding: 10px;
+            border: 1px solid #43a047;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            width: 200px;
+            text-align: center;
+        }
+        
+        .flowchart-step.io {
+            background-color: #e3f2fd;
+            border: 1px solid #1e88e5;
+        }
+        
+        .flowchart-step.decision {
+            background-color: #fff3e0;
+            border: 1px solid #fb8c00;
+        }
+        
+        .flowchart-step.compute {
+            background-color: #e8f5e9;
+            border: 1px solid #43a047;
+        }
+        
+        .flowchart-step.end {
+            background-color: #ffebee;
+            border: 1px solid #c62828;
+        }
+        
+        .dataflow {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .dataflow-panel {
+            background-color: #fffde7;
+            padding: 10px;
+            border: 1px solid #f9a825;
+            border-radius: 10px;
+            margin: 10px;
+            width: 200px;
+            text-align: center;
+        }
+        
+        .memory-layout {
+            border-collapse: collapse;
+        }
+        
+        .memory-layout th, .memory-layout td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        
+        .execution-trace {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .execution-trace li {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .execution-trace li:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h2>Division Structure</h2>
+            </div>
+            <ul>
+                <li>IDENTIFICATION DIVISION
+                    <ul>
+                        <li>PROGRAM-ID. CALC.</li>
+                    </ul>
+                </li>
+                <li>DATA DIVISION
+                    <ul>
+                        <li>WORKING-STORAGE SECTION.
+                            <ul>
+                                <li>01 A      PIC 9(3).</li>
+                                <li>01 B      PIC 9(3).</li>
+                                <li>01 CH     PIC X.</li>
+                                <li>01 RES    PIC 9(4).</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+                <li>PROCEDURE DIVISION
+                    <ul>
+                        <li>DISPLAY "Enter first number: ".</li>
+                        <li>ACCEPT A.</li>
+                        <li>DISPLAY "Enter second number: ".</li>
+                        <li>ACCEPT B.</li>
+                        <li>DISPLAY "Enter operation (+ or -): ".</li>
+                        <li>ACCEPT CH.</li>
+                        <li>IF CH = "+"
+                            <ul>
+                                <li>COMPUTE RES = A + B</li>
+                            </ul>
+                            ELSE
+                            <ul>
+                                <li>COMPUTE RES = A - B</li>
+                            </ul>
+                            END-IF.
+                        </li>
+                        <li>DISPLAY "Result: " RES.</li>
+                        <li>STOP RUN.</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>Flowchart</h2>
+            </div>
+            <div class="flowchart">
+                <div class="flowchart-step normal">Start</div>
+                <div class="flowchart-step io">DISPLAY 'Enter first number:'</div>
+                <div class="flowchart-step normal">ACCEPT A</div>
+                <div class="flowchart-step io">DISPLAY 'Enter second number:'</div>
+                <div class="flowchart-step normal">ACCEPT B</div>
+                <div class="flowchart-step io">DISPLAY 'Enter operation (+ or -): '</div>
+                <div class="flowchart-step normal">ACCEPT CH</div>
+                <div class="flowchart-step decision">END-IF</div>
+                <div class="flowchart-step io">DISPLAY 'Result: ' RES</div>
+                <div class="flowchart-step end">STOP RUN</div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>Dataflow</h2>
+            </div>
+            <div class="dataflow">
+                <div class="dataflow-panel">A</div>
+                <div class="dataflow-panel">B</div>
+                <div class="dataflow-panel">CH</div>
+                <div class="dataflow-panel">RES</div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>Memory Layout</h2>
+            </div>
+            <table class="memory-layout">
+                <tr>
+                    <th>Field</th>
+                    <th>PIC</th>
+                </tr>
+                <tr>
+                    <td>A</td>
+                    <td>9(3)</td>
+                </tr>
+                <tr>
+                    <td>B</td>
+                    <td>9(3)</td>
+                </tr>
+                <tr>
+                    <td>CH</td>
+                    <td>X</td>
+                </tr>
+                <tr>
+                    <td>RES</td>
+                    <td>9(4)</td>
+                </tr>
+            </table>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h2>Execution Trace</h2>
+            </div>
+            <ul class="execution-trace">
+                <li>Execute DISPLAY "Enter first number: "</li>
+                <li>Execute ACCEPT A</li>
+                <li>Execute DISPLAY "Enter second number: "</li>
+                <li>Execute ACCEPT B</li>
+                <li>Execute DISPLAY "Enter operation (+ or -): "</li>
+                <li>Execute ACCEPT CH</li>
+                <li>Execute END-IF</li>
+                <li>Execute DISPLAY "Result: " RES</li>
+                <li>Execute STOP RUN</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
+```

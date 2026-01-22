@@ -1,6 +1,8 @@
+// frontend/src/App.js
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Plus, Trash2, Save, Download, Upload, Code, Terminal, FileText, Share2, MessageSquare, Sparkles, Type, Settings, Users, PlayCircle, StopCircle, ChevronDown, Copy, Link2, Edit3, Hash, Braces, File, Zap, User, Clock, Send, X, Check } from 'lucide-react';
-import Cell from './components/Cell';
+import CodeCell from './components/CodeCell';
+import TextCell from './components/TextCell';
 import AIAssistant from './components/AIAssistant';
 import VisualizationPanel from './components/VisualizationPanel';
 
@@ -149,6 +151,10 @@ const COBook = () => {
         })
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.success) {
@@ -156,23 +162,25 @@ const COBook = () => {
         const newCell = {
           id: nextId,
           type: 'code',
-          content: data.generatedCode,
+          content: data.generatedCode || data.suggestion,
           output: '',
           isRunning: false
         };
 
         setCells([...cells, newCell]);
         setNextId(nextId + 1);
+      } else {
+        throw new Error(data.error || 'Failed to generate code');
       }
     } catch (error) {
       console.error('Error generating code:', error);
-      alert('Error generating code. Please try again.');
+      throw new Error(`Failed to generate code: ${error.message}`);
     }
   };
 
   const handleExplainCode = async (prompt) => {
     const cell = cells.find(c => c.id === selectedCell);
-    if (!cell) return;
+    if (!cell) throw new Error('No cell selected');
 
     try {
       const response = await fetch('http://localhost:5000/api/ai-assist', {
@@ -186,6 +194,10 @@ const COBook = () => {
         })
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.success) {
@@ -193,7 +205,7 @@ const COBook = () => {
         const newCell = {
           id: nextId,
           type: 'text',
-          content: `<h2>Code Explanation</h2><p>${data.suggestion}</p>`,
+          content: `<h2>Code Explanation</h2><p>${data.suggestion || data.explanation}</p>`,
           output: '',
           isRunning: false
         };
@@ -204,16 +216,18 @@ const COBook = () => {
         newCells.splice(index + 1, 0, newCell);
         setCells(newCells);
         setNextId(nextId + 1);
+      } else {
+        throw new Error(data.error || 'Failed to explain code');
       }
     } catch (error) {
       console.error('Error explaining code:', error);
-      alert('Error explaining code. Please try again.');
+      throw new Error(`Failed to explain code: ${error.message}`);
     }
   };
 
   const handleFixError = async (prompt) => {
     const cell = cells.find(c => c.id === selectedCell);
-    if (!cell) return;
+    if (!cell) throw new Error('No cell selected');
 
     try {
       const response = await fetch('http://localhost:5000/api/ai-assist', {
@@ -227,23 +241,29 @@ const COBook = () => {
         })
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.success) {
         // Update the selected cell with the fixed code
         setCells(cells.map(c =>
-          c.id === selectedCell ? { ...c, content: data.generatedCode } : c
+          c.id === selectedCell ? { ...c, content: data.generatedCode || data.suggestion } : c
         ));
+      } else {
+        throw new Error(data.error || 'Failed to fix error');
       }
     } catch (error) {
       console.error('Error fixing code:', error);
-      alert('Error fixing code. Please try again.');
+      throw new Error(`Failed to fix error: ${error.message}`);
     }
   };
 
   const handleConvertToPython = async (prompt) => {
     const cell = cells.find(c => c.id === selectedCell);
-    if (!cell) return;
+    if (!cell) throw new Error('No cell selected');
 
     try {
       const response = await fetch('http://localhost:5000/api/ai-assist', {
@@ -257,6 +277,10 @@ const COBook = () => {
         })
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.success) {
@@ -264,7 +288,7 @@ const COBook = () => {
         const newCell = {
           id: nextId,
           type: 'text',
-          content: `<h2>Python Equivalent</h2><pre><code>${data.generatedCode}</code></pre>`,
+          content: `<h2>Python Equivalent</h2><pre><code class="language-python">${data.generatedCode || data.suggestion}</code></pre>`,
           output: '',
           isRunning: false
         };
@@ -275,10 +299,12 @@ const COBook = () => {
         newCells.splice(index + 1, 0, newCell);
         setCells(newCells);
         setNextId(nextId + 1);
+      } else {
+        throw new Error(data.error || 'Failed to convert to Python');
       }
     } catch (error) {
       console.error('Error converting to Python:', error);
-      alert('Error converting to Python. Please try again.');
+      throw new Error(`Failed to convert to Python: ${error.message}`);
     }
   };
 
@@ -299,6 +325,10 @@ const COBook = () => {
         })
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.success) {
@@ -306,17 +336,19 @@ const COBook = () => {
         const newCell = {
           id: nextId,
           type: 'text',
-          content: `<h2>Program Summary</h2><p>${data.suggestion}</p>`,
+          content: `<h2>Program Summary</h2><p>${data.suggestion || data.explanation}</p>`,
           output: '',
           isRunning: false
         };
 
         setCells([...cells, newCell]);
         setNextId(nextId + 1);
+      } else {
+        throw new Error(data.error || 'Failed to summarize program');
       }
     } catch (error) {
       console.error('Error summarizing program:', error);
-      alert('Error summarizing program. Please try again.');
+      throw new Error(`Failed to summarize program: ${error.message}`);
     }
   };
 
@@ -520,19 +552,29 @@ const COBook = () => {
         <div className="space-y-6">
           {cells.map((cell, index) => (
             <div key={cell.id}>
-              <Cell
-                cell={cell}
-                index={index}
-                onUpdateContent={updateContent}
-                onRunCell={runCell}
-                onDeleteCell={deleteCell}
-                onAddCell={addCell}
-                onShowAIAssistant={showAIAssistantForCell}
-                onToggleVisualization={toggleVisualization}
-                comments={comments}
-                onToggleComments={toggleComments}
-                onAddComment={addComment}
-              />
+              {cell.type === 'code' ? (
+                <CodeCell
+                  cell={cell}
+                  index={index}
+                  onUpdateContent={updateContent}
+                  onRunCell={runCell}
+                  onDeleteCell={deleteCell}
+                  onAddCell={addCell}
+                  onShowAIAssistant={showAIAssistantForCell}
+                  onToggleVisualization={toggleVisualization}
+                />
+              ) : (
+                <TextCell
+                  cell={cell}
+                  index={index}
+                  onUpdateContent={updateContent}
+                  onDeleteCell={deleteCell}
+                  onAddCell={addCell}
+                  comments={comments}
+                  onToggleComments={toggleComments}
+                  onAddComment={addComment}
+                />
+              )}
               
               {/* Visualization Panel */}
               {cell.type === 'code' && showVisualization[cell.id] && (

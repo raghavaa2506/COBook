@@ -84,6 +84,7 @@ app.post('/api/ai-assist', async (req, res) => {
   }
 
   console.log(`\n🤖 AI Assist Request: "${prompt.substring(0, 50)}..."`);
+  console.log(`Feature: ${feature || 'generate'}`);
 
   try {
     const result = await getAIAssistance(prompt, context, cellType, feature || 'generate');
@@ -114,8 +115,11 @@ app.post('/api/visualization/flowchart', async (req, res) => {
     return res.status(400).json({ error: 'No code provided' });
   }
 
+  console.log('\n📊 Generating flowchart visualization...');
+
   try {
     const flowchart = await generateFlowchart(code);
+    console.log(`✓ Flowchart generated: ${flowchart.nodes.length} nodes, ${flowchart.edges.length} edges`);
     res.json({
       success: true,
       flowchart
@@ -136,8 +140,11 @@ app.post('/api/visualization/dataflow', async (req, res) => {
     return res.status(400).json({ error: 'No code provided' });
   }
 
+  console.log('\n📊 Generating data flow visualization...');
+
   try {
     const dataflow = await generateDataFlow(code);
+    console.log(`✓ Data flow generated: ${dataflow.nodes.length} nodes, ${dataflow.edges.length} edges`);
     res.json({
       success: true,
       dataflow
@@ -158,8 +165,11 @@ app.post('/api/visualization/memory', async (req, res) => {
     return res.status(400).json({ error: 'No code provided' });
   }
 
+  console.log('\n📊 Generating memory layout visualization...');
+
   try {
     const memoryLayout = await generateMemoryLayout(code);
+    console.log(`✓ Memory layout generated: ${memoryLayout.length} variable groups`);
     res.json({
       success: true,
       memoryLayout
@@ -180,8 +190,11 @@ app.post('/api/visualization/structure', async (req, res) => {
     return res.status(400).json({ error: 'No code provided' });
   }
 
+  console.log('\n📊 Generating division structure visualization...');
+
   try {
     const structure = await generateDivisionStructure(code);
+    console.log(`✓ Division structure generated: ${structure.length} divisions`);
     res.json({
       success: true,
       structure
@@ -202,8 +215,11 @@ app.post('/api/visualization/trace', async (req, res) => {
     return res.status(400).json({ error: 'No code provided' });
   }
 
+  console.log('\n📊 Generating execution trace visualization...');
+
   try {
     const trace = await generateExecutionTrace(code);
+    console.log(`✓ Execution trace generated: ${trace.length} steps`);
     res.json({
       success: true,
       trace
@@ -289,6 +305,14 @@ app.use((error, req, res, next) => {
   });
 });
 
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Endpoint not found'
+  });
+});
+
 server.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════════╗
@@ -304,6 +328,18 @@ server.listen(PORT, () => {
 ║  📊 Visualization:  Flowchart, Data Flow, Memory   ║
 ╚════════════════════════════════════════════════════╝
   `);
+  
+  console.log('\n📚 Available endpoints:');
+  console.log('  POST /api/execute - Execute COBOL code');
+  console.log('  POST /api/ai-assist - Get AI assistance');
+  console.log('  POST /api/visualization/flowchart - Generate flowchart');
+  console.log('  POST /api/visualization/dataflow - Generate data flow');
+  console.log('  POST /api/visualization/memory - Generate memory layout');
+  console.log('  POST /api/visualization/structure - Generate division structure');
+  console.log('  POST /api/visualization/trace - Generate execution trace');
+  console.log('  GET  /api/health - Health check');
+  console.log('  POST /api/notebooks/save - Save notebook');
+  console.log('  GET  /api/notebooks/:id - Load notebook');
 });
 
 // Graceful shutdown
@@ -318,4 +354,28 @@ process.on('SIGINT', () => {
     console.log('✓ Server closed');
     process.exit(0);
   });
+});
+
+process.on('SIGTERM', () => {
+  console.log('\n\n🛑 Received SIGTERM, shutting down gracefully...');
+
+  connections.forEach((ws) => {
+    ws.close();
+  });
+
+  server.close(() => {
+    console.log('✓ Server closed');
+    process.exit(0);
+  });
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
 });

@@ -1,3 +1,4 @@
+// frontend/src/components/VisualizationPanel.js
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronRight, BarChart3, GitBranch, Database, FileText, Play } from 'lucide-react';
 import Flowchart from './Flowchart';
@@ -14,6 +15,7 @@ const VisualizationPanel = ({ code, isVisible, onClose }) => {
   const [memoryLayout, setMemoryLayout] = useState(null);
   const [divisionStructure, setDivisionStructure] = useState(null);
   const [executionTrace, setExecutionTrace] = useState(null);
+  const [error, setError] = useState(null);
 
   const tabs = [
     { id: 'flowchart', name: 'Flowchart', icon: GitBranch },
@@ -26,85 +28,113 @@ const VisualizationPanel = ({ code, isVisible, onClose }) => {
   // Load visualizations when code changes
   useEffect(() => {
     if (code && isVisible) {
+      console.log('Loading visualizations for code:', code.substring(0, 100));
       loadVisualizations();
     }
   }, [code, isVisible]);
 
   const loadVisualizations = async () => {
     setIsLoading(true);
+    setError(null);
     
     try {
       // Load flowchart
-      const flowchartResponse = await fetch('http://localhost:5000/api/visualization/flowchart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code })
-      });
-      
-      if (flowchartResponse.ok) {
-        const flowchartData = await flowchartResponse.json();
-        if (flowchartData.success) {
-          setFlowchart(flowchartData.flowchart);
+      try {
+        console.log('Fetching flowchart...');
+        const flowchartResponse = await fetch('http://localhost:5000/api/visualization/flowchart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        });
+        
+        if (flowchartResponse.ok) {
+          const flowchartData = await flowchartResponse.json();
+          console.log('Flowchart response:', flowchartData);
+          if (flowchartData.success) {
+            setFlowchart(flowchartData.flowchart);
+            console.log('Flowchart set:', flowchartData.flowchart);
+          }
+        } else {
+          console.error('Flowchart response not ok:', flowchartResponse.status);
         }
+      } catch (err) {
+        console.error('Error loading flowchart:', err);
       }
       
       // Load data flow
-      const dataflowResponse = await fetch('http://localhost:5000/api/visualization/dataflow', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code })
-      });
-      
-      if (dataflowResponse.ok) {
-        const dataflowData = await dataflowResponse.json();
-        if (dataflowData.success) {
-          setDataflow(dataflowData.dataflow);
+      try {
+        const dataflowResponse = await fetch('http://localhost:5000/api/visualization/dataflow', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        });
+        
+        if (dataflowResponse.ok) {
+          const dataflowData = await dataflowResponse.json();
+          if (dataflowData.success) {
+            setDataflow(dataflowData.dataflow);
+          }
         }
+      } catch (err) {
+        console.error('Error loading data flow:', err);
       }
       
       // Load memory layout
-      const memoryResponse = await fetch('http://localhost:5000/api/visualization/memory', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code })
-      });
-      
-      if (memoryResponse.ok) {
-        const memoryData = await memoryResponse.json();
-        if (memoryData.success) {
-          setMemoryLayout(memoryData.memoryLayout);
+      try {
+        const memoryResponse = await fetch('http://localhost:5000/api/visualization/memory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        });
+        
+        if (memoryResponse.ok) {
+          const memoryData = await memoryResponse.json();
+          if (memoryData.success) {
+            setMemoryLayout(memoryData.memoryLayout);
+          }
         }
+      } catch (err) {
+        console.error('Error loading memory layout:', err);
       }
       
       // Load division structure
-      const structureResponse = await fetch('http://localhost:5000/api/visualization/structure', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code })
-      });
-      
-      if (structureResponse.ok) {
-        const structureData = await structureResponse.json();
-        if (structureData.success) {
-          setDivisionStructure(structureData.structure);
+      try {
+        const structureResponse = await fetch('http://localhost:5000/api/visualization/structure', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        });
+        
+        if (structureResponse.ok) {
+          const structureData = await structureResponse.json();
+          if (structureData.success) {
+            setDivisionStructure(structureData.structure);
+          }
         }
+      } catch (err) {
+        console.error('Error loading division structure:', err);
       }
       
       // Load execution trace
-      const traceResponse = await fetch('http://localhost:5000/api/visualization/trace', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code })
-      });
-      
-      if (traceResponse.ok) {
-        const traceData = await traceResponse.json();
-        if (traceData.success) {
-          setExecutionTrace(traceData.trace);
+      try {
+        const traceResponse = await fetch('http://localhost:5000/api/visualization/trace', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        });
+        
+        if (traceResponse.ok) {
+          const traceData = await traceResponse.json();
+          if (traceData.success) {
+            setExecutionTrace(traceData.trace);
+          }
         }
+      } catch (err) {
+        console.error('Error loading execution trace:', err);
       }
     } catch (error) {
       console.error('Error loading visualizations:', error);
+      setError('Failed to load visualizations');
     } finally {
       setIsLoading(false);
     }
@@ -155,9 +185,20 @@ const VisualizationPanel = ({ code, isVisible, onClose }) => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
             <span className="ml-2 text-gray-600">Generating visualization...</span>
           </div>
+        ) : error ? (
+          <div className="text-red-500 text-center py-8">
+            {error}
+          </div>
         ) : (
           <>
-            {activeTab === 'flowchart' && <Flowchart data={flowchart} />}
+            {activeTab === 'flowchart' && (
+              <div>
+                <div className="mb-2 text-xs text-gray-500">
+                  {flowchart && flowchart.nodes ? `${flowchart.nodes.length} nodes, ${flowchart.edges ? flowchart.edges.length : 0} edges` : 'No data'}
+                </div>
+                <Flowchart data={flowchart} />
+              </div>
+            )}
             {activeTab === 'dataflow' && <DataFlow data={dataflow} />}
             {activeTab === 'memory' && <MemoryLayout data={memoryLayout} />}
             {activeTab === 'structure' && <DivisionStructure data={divisionStructure} />}

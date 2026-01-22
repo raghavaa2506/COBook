@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>COBOL Visualizer</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+body{
+  margin:0;background:#0f172a;color:#e5e7eb;
+  font-family:system-ui;display:grid;
+  grid-template-columns:1fr 1fr;grid-template-rows:auto auto;
+  gap:14px;padding:14px;height:100vh;
+}
+.panel{background:#111827;border-radius:10px;padding:12px;box-shadow:0 0 0 1px #1f2933 inset;}
+h3{margin:0 0 6px 0;color:#38bdf8}
+#exec .line{padding:6px;border-radius:6px}
+#exec .active{background:#334155}
+button{background:#38bdf8;border:none;padding:6px 12px;border-radius:6px;font-weight:600}
+svg{background:#020617;border-radius:6px}
+</style>
+</head>
+<body>
+
+<div class="panel"><h3>Flowchart</h3><div id="flowchart"></div></div>
+<div class="panel"><h3>Data Flow</h3><div id="dataflow"></div></div>
+<div class="panel"><h3>Division Structure</h3><svg id="tree" width="100%" height="260"></svg></div>
+<div class="panel"><h3>Memory Layout</h3><svg id="memory" width="100%" height="260"></svg></div>
+
+<div class="panel" style="grid-column:1 / span 2">
+<h3>Execution</h3>
+<div id="exec"></div>
+<button onclick="run()">Run</button>
+</div>
+
+<script>
+mermaid.initialize({startOnLoad:false, theme:"dark"});
+
+fetch("program.json").then(r=>r.json()).then(data=>{
+
+// FLOWCHART
+let fc="flowchart TD\nA([Start])\n";
+if(data.flow.length===0){
+  fc+="A-->Z([End])";
+}else{
+  data.flow.forEach((n,i)=>{
+    fc+=`${n.id}["${n.text.replace(/"/g,'')}"]\n`;
+    fc+=(i==0?"A":data.flow[i-1].id)+`-->${n.id}\n`;
+  });
+  fc+=`${data.flow.at(-1).id}-->Z([End])`;
+}
+mermaid.render("fc",fc,svg=>flowchart.innerHTML=svg);
+
+// DATAFLOW
+let df="flowchart LR\n";
+if(data.dataflow.length===0){
+  df+='X["No Data Flow"]';
+}else{
+  data.dataflow.forEach((e,i)=>{
+    df+=`L${i}["${e.from}"]-->D${i}[${e.to}]\n`;
+  });
+}
+mermaid.render("df",df,svg=>dataflow.innerHTML=svg);
+
+// DIVISION TREE
+const treeData={name:"PROGRAM",children:Object.entries(data.divisions).map(([k,v])=>({
+  name:k,children:v.map(x=>({name:x}))
+}))};
+
+const root=d3.hierarchy(treeData);
+d3.tree().size([240,350])(root);
+const tsvg=d3.select("#tree");
+tsvg.selectAll("*").remove();
+
+tsvg.selectAll("line").data(root.links()).enter().append("line")
+.attr("x1",d=>d.source.y).attr("y1",d=>d.source.x)
+.attr("x2",d=>d.target.y).attr("y2",d=>d.target.x)
+.attr("stroke","#475569");
+
+tsvg.selectAll("text").data(root.descendants()).enter().append("text")
+.attr("x",d=>d.y+6).attr("y",d=>d.x+4)
+.text(d=>d.data.name).attr("font-size","10px");
+
+// MEMORY
+const msvg=d3.select("#memory");
+msvg.selectAll("*").remove();
+if(data.memory.length===0){
+  msvg.append("text").attr("x",20).attr("y",40)
+  .text("No DATA DIVISION").attr("fill","#94a3b8");
+}else{
+  data.memory.forEach((m,i)=>{
+    msvg.append("rect").attr("x",20).attr("y",20+i*40)
+    .attr("width",200).attr("height",30)
+    .attr("rx",6).attr("fill","#1e293b");
+    msvg.append("text").attr("x",30).attr("y",40+i*40)
+    .text(m.name+" : "+m.pic).attr("font-size","12px");
+  });
+}
+
+// EXECUTION
+const exec=document.getElementById("exec");
+data.flow.forEach((s,i)=>{
+  const d=document.createElement("div");
+  d.className="line";d.id="L"+i;d.textContent=s.text;
+  exec.appendChild(d);
+});
+
+window.run=async()=>{
+  for(let i=0;i<data.flow.length;i++){
+    document.querySelectorAll(".line").forEach(e=>e.classList.remove("active"));
+    document.getElementById("L"+i).classList.add("active");
+    await new Promise(r=>setTimeout(r,700));
+  }
+};
+});
+</script>
+</body>
+</html>

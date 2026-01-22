@@ -1,3 +1,4 @@
+// backend/ai-assistant.js
 require('dotenv').config();
 
 let groq = null;
