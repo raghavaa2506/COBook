@@ -1,22 +1,22 @@
+// frontend/src/components/Cell.js (unchanged - already correct)
 import React from 'react';
-import { Play, Trash2, Plus, Terminal, FileText, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 import CodeCell from './CodeCell';
 import TextCell from './TextCell';
 
-const Cell = ({ 
-  cell, 
-  index, 
-  onUpdateContent, 
-  onRunCell, 
-  onDeleteCell, 
-  onAddCell, 
-  onShowAIAssistant, 
+const Cell = ({
+  cell,
+  index,
+  onUpdateContent,
+  onRunCell,
+  onDeleteCell,
+  onAddCell,
+  onShowAIAssistant,
   onToggleVisualization,
-  comments, 
-  onToggleComments, 
-  onAddComment 
+  onProvideInput,
+  comments,
+  onToggleComments,
+  onAddComment
 }) => {
-  // Render the appropriate cell type
   if (cell.type === 'code') {
     return (
       <CodeCell
@@ -28,6 +28,7 @@ const Cell = ({
         onAddCell={onAddCell}
         onShowAIAssistant={onShowAIAssistant}
         onToggleVisualization={onToggleVisualization}
+        onProvideInput={onProvideInput}
       />
     );
   } else {

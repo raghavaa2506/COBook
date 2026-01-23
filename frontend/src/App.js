@@ -1,8 +1,7 @@
-// frontend/src/App.js
+// frontend/src/App.js (fixed error handling)
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Plus, Trash2, Save, Download, Upload, Code, Terminal, FileText, Share2, MessageSquare, Sparkles, Type, Settings, Users, PlayCircle, StopCircle, ChevronDown, Copy, Link2, Edit3, Hash, Braces, File, Zap, User, Clock, Send, X, Check } from 'lucide-react';
-import CodeCell from './components/CodeCell';
-import TextCell from './components/TextCell';
+import Cell from './components/Cell';
 import AIAssistant from './components/AIAssistant';
 import VisualizationPanel from './components/VisualizationPanel';
 
@@ -11,20 +10,33 @@ const COBook = () => {
     {
       id: 1,
       type: 'text',
-      content: '<h1>Welcome to COBook</h1><p>A modern <strong>COBOL development environment</strong> in your browser. Features:</p><ul><li>Write and execute COBOL programs of any size</li><li>Add formatted documentation with Markdown</li><li>AI-powered code assistance</li><li>Real-time collaboration</li><li>Interactive visualizations</li></ul>',
+      content: '<h1>Welcome to COBook</h1><p>A modern <strong>COBOL development environment</strong> in your browser. Features:</p><ul><li>Write and execute COBOL programs of any size</li><li>Add formatted documentation with Markdown</li><li>AI-powered code assistance</li><li>Real-time collaboration</li><li>Interactive visualizations</li><li>Interactive input/output support</li></ul>',
       output: '',
-      isRunning: false
+      isRunning: false,
+      needsInput: false,
+      sessionId: null
     },
     {
       id: 2,
       type: 'code',
       content: `       IDENTIFICATION DIVISION.
-       PROGRAM-ID. HelloWorld.
+       PROGRAM-ID. InteractiveExample.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 USER-NAME PIC X(30).
+       01 USER-AGE PIC 99.
        PROCEDURE DIVISION.
-           DISPLAY 'Hello from COBook!'.
+           DISPLAY 'What is your name? '.
+           ACCEPT USER-NAME.
+           DISPLAY 'How old are you? '.
+           ACCEPT USER-AGE.
+           DISPLAY 'Hello, ' USER-NAME '!'.
+           DISPLAY 'You are ' USER-AGE ' years old.'.
            STOP RUN.`,
       output: '',
-      isRunning: false
+      isRunning: false,
+      needsInput: false,
+      sessionId: null
     }
   ]);
   const [nextId, setNextId] = useState(3);
@@ -41,7 +53,7 @@ const COBook = () => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [showVisualization, setShowVisualization] = useState({});
   const [activeVisualizationCell, setActiveVisualizationCell] = useState(null);
-  
+
   const addCell = (type = 'code', afterId = null) => {
     const newCell = {
       id: nextId,
@@ -54,7 +66,9 @@ const COBook = () => {
            STOP RUN.`
         : '<h2>New Text Section</h2><p>Click to edit and add your documentation...</p>',
       output: '',
-      isRunning: false
+      isRunning: false,
+      needsInput: false,
+      sessionId: null
     };
 
     if (afterId) {
@@ -75,7 +89,6 @@ const COBook = () => {
   };
 
   const updateContent = (id, newContent) => {
-    // Only update if content actually changed
     const currentCell = cells.find(c => c.id === id);
     if (currentCell && currentCell.content !== newContent) {
       setCells(cells.map(cell =>
@@ -89,7 +102,13 @@ const COBook = () => {
     if (!cell || cell.type !== 'code') return;
 
     setCells(cells.map(c =>
-      c.id === id ? { ...c, isRunning: true, output: 'Compiling COBOL program...' } : c
+      c.id === id ? { 
+        ...c, 
+        isRunning: true, 
+        output: 'Compiling COBOL program...', 
+        needsInput: false, 
+        sessionId: null 
+      } : c
     ));
 
     try {
@@ -104,20 +123,128 @@ const COBook = () => {
       let output = `GnuCOBOL Compiler v3.2.0\n`;
 
       if (data.success) {
-        output += `Compilation successful\n\n${'─'.repeat(50)}\nProgram Output:\n${'─'.repeat(50)}\n${data.output}\n${'─'.repeat(50)}\n\nExecution time: ${data.executionTime}ms\nExit code: 0`;
+        output += `Compilation successful\n\n${'─'.repeat(50)}\nProgram Output:\n${'─'.repeat(50)}\n${data.output}`;
+
+        if (data.needsInput) {
+          output += `\n${'─'.repeat(50)}`;
+
+          setCells(cells.map(c =>
+            c.id === id ? {
+              ...c,
+              isRunning: false,
+              output,
+              needsInput: true,
+              sessionId: data.sessionId
+            } : c
+          ));
+          return;
+        } else {
+          output += `\n${'─'.repeat(50)}\n\nExecution time: ${data.executionTime}ms\nExit code: 0`;
+        }
       } else {
         output += `Compilation failed\n\n${data.error}`;
       }
 
       setCells(cells.map(c =>
-        c.id === id ? { ...c, isRunning: false, output } : c
+        c.id === id ? {
+          ...c,
+          isRunning: false,
+          output,
+          needsInput: false,
+          sessionId: null
+        } : c
       ));
     } catch (error) {
       setCells(cells.map(c =>
         c.id === id ? {
           ...c,
           isRunning: false,
-          output: `Connection Error\n\nCouldn't connect to backend server.\nMake sure the server is running on http://localhost:5000\n\nError: ${error.message}`
+          output: `Connection Error\n\nCouldn't connect to backend server.\nMake sure the server is running on http://localhost:5000\n\nError: ${error.message}`,
+          needsInput: false,
+          sessionId: null
+        } : c
+      ));
+    }
+  };
+
+  const provideInputToCell = async (cellId, input) => {
+    const cell = cells.find(c => c.id === cellId);
+    if (!cell || !cell.sessionId) {
+      console.error('Cannot provide input: no active session');
+      return;
+    }
+
+    // Show user input in output immediately
+    setCells(cells.map(c =>
+      c.id === cellId ? {
+        ...c,
+        output: c.output + `${input}\n`,
+        needsInput: false
+      } : c
+    ));
+
+    try {
+      const response = await fetch('http://localhost:5000/api/provide-input', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cellId: cellId,
+          sessionId: cell.sessionId,
+          input: input
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Get new output after the input
+        const newOutput = data.output || cell.output;
+        
+        if (data.needsInput) {
+          // Program needs more input
+          setCells(cells.map(c =>
+            c.id === cellId ? {
+              ...c,
+              output: newOutput + `\n${'─'.repeat(50)}`,
+              needsInput: true,
+              sessionId: data.sessionId
+            } : c
+          ));
+        } else {
+          // Program completed
+          const finalOutput = newOutput + `\n${'─'.repeat(50)}\n\nProgram completed\nExit code: 0`;
+          
+          setCells(cells.map(c =>
+            c.id === cellId ? {
+              ...c,
+              output: finalOutput,
+              needsInput: false,
+              sessionId: null
+            } : c
+          ));
+        }
+      } else {
+        // Error occurred
+        const errorDetails = data.error || data.stderr || 'Unknown error occurred';
+        const errorOutput = (data.output || cell.output) + `\n${'─'.repeat(50)}\n\n❌ Error: ${errorDetails}\n\nStderr: ${data.stderr || 'none'}`;
+        
+        setCells(cells.map(c =>
+          c.id === cellId ? {
+            ...c,
+            output: errorOutput,
+            needsInput: false,
+            sessionId: null
+          } : c
+        ));
+      }
+    } catch (error) {
+      console.error('Error providing input:', error);
+      setCells(cells.map(c =>
+        c.id === cellId ? {
+          ...c,
+          output: c.output + `\n\n❌ Error providing input: ${error.message}`,
+          needsInput: false,
+          sessionId: null
         } : c
       ));
     }
@@ -132,7 +259,6 @@ const COBook = () => {
     }
   };
 
-  // AI Assistant functions
   const showAIAssistantForCell = (cellId) => {
     setSelectedCell(cellId);
     setShowAIAssistant(true);
@@ -158,13 +284,14 @@ const COBook = () => {
       const data = await response.json();
 
       if (data.success) {
-        // Add a new code cell with the generated code
         const newCell = {
           id: nextId,
           type: 'code',
           content: data.generatedCode || data.suggestion,
           output: '',
-          isRunning: false
+          isRunning: false,
+          needsInput: false,
+          sessionId: null
         };
 
         setCells([...cells, newCell]);
@@ -201,16 +328,16 @@ const COBook = () => {
       const data = await response.json();
 
       if (data.success) {
-        // Add a new text cell with the explanation
         const newCell = {
           id: nextId,
           type: 'text',
           content: `<h2>Code Explanation</h2><p>${data.suggestion || data.explanation}</p>`,
           output: '',
-          isRunning: false
+          isRunning: false,
+          needsInput: false,
+          sessionId: null
         };
 
-        // Find the index of the selected cell and add the new cell after it
         const index = cells.findIndex(c => c.id === selectedCell);
         const newCells = [...cells];
         newCells.splice(index + 1, 0, newCell);
@@ -235,7 +362,7 @@ const COBook = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt,
-          context: cell.output, // Pass the error message as context
+          context: cell.output,
           cellType: 'code',
           feature: 'fix'
         })
@@ -248,7 +375,6 @@ const COBook = () => {
       const data = await response.json();
 
       if (data.success) {
-        // Update the selected cell with the fixed code
         setCells(cells.map(c =>
           c.id === selectedCell ? { ...c, content: data.generatedCode || data.suggestion } : c
         ));
@@ -284,16 +410,16 @@ const COBook = () => {
       const data = await response.json();
 
       if (data.success) {
-        // Add a new text cell with the Python code
         const newCell = {
           id: nextId,
           type: 'text',
           content: `<h2>Python Equivalent</h2><pre><code class="language-python">${data.generatedCode || data.suggestion}</code></pre>`,
           output: '',
-          isRunning: false
+          isRunning: false,
+          needsInput: false,
+          sessionId: null
         };
 
-        // Find the index of the selected cell and add the new cell after it
         const index = cells.findIndex(c => c.id === selectedCell);
         const newCells = [...cells];
         newCells.splice(index + 1, 0, newCell);
@@ -310,7 +436,6 @@ const COBook = () => {
 
   const handleSummarizeProgram = async (prompt) => {
     try {
-      // Combine all code cells into a single program
       const codeCells = cells.filter(c => c.type === 'code');
       const combinedCode = codeCells.map(c => c.content).join('\n\n');
 
@@ -332,13 +457,14 @@ const COBook = () => {
       const data = await response.json();
 
       if (data.success) {
-        // Add a new text cell with the summary
         const newCell = {
           id: nextId,
           type: 'text',
           content: `<h2>Program Summary</h2><p>${data.suggestion || data.explanation}</p>`,
           output: '',
-          isRunning: false
+          isRunning: false,
+          needsInput: false,
+          sessionId: null
         };
 
         setCells([...cells, newCell]);
@@ -357,7 +483,7 @@ const COBook = () => {
       ...prev,
       [cellId]: show
     }));
-    
+
     if (show) {
       setActiveVisualizationCell(cellId);
     } else if (activeVisualizationCell === cellId) {
@@ -426,7 +552,6 @@ const COBook = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -483,7 +608,6 @@ const COBook = () => {
             </div>
           </div>
 
-          {/* Action Bar */}
           <div className="flex items-center space-x-2 mt-4 pt-4 border-t border-gray-200">
             <button
               onClick={() => addCell('code')}
@@ -547,36 +671,25 @@ const COBook = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="space-y-6">
           {cells.map((cell, index) => (
             <div key={cell.id}>
-              {cell.type === 'code' ? (
-                <CodeCell
-                  cell={cell}
-                  index={index}
-                  onUpdateContent={updateContent}
-                  onRunCell={runCell}
-                  onDeleteCell={deleteCell}
-                  onAddCell={addCell}
-                  onShowAIAssistant={showAIAssistantForCell}
-                  onToggleVisualization={toggleVisualization}
-                />
-              ) : (
-                <TextCell
-                  cell={cell}
-                  index={index}
-                  onUpdateContent={updateContent}
-                  onDeleteCell={deleteCell}
-                  onAddCell={addCell}
-                  comments={comments}
-                  onToggleComments={toggleComments}
-                  onAddComment={addComment}
-                />
-              )}
-              
-              {/* Visualization Panel */}
+              <Cell
+                cell={cell}
+                index={index}
+                onUpdateContent={updateContent}
+                onRunCell={runCell}
+                onDeleteCell={deleteCell}
+                onAddCell={addCell}
+                onShowAIAssistant={showAIAssistantForCell}
+                onToggleVisualization={toggleVisualization}
+                onProvideInput={provideInputToCell}
+                comments={comments}
+                onToggleComments={toggleComments}
+                onAddComment={addComment}
+              />
+
               {cell.type === 'code' && showVisualization[cell.id] && (
                 <VisualizationPanel
                   code={cell.content}
@@ -589,7 +702,6 @@ const COBook = () => {
         </div>
       </div>
 
-      {/* AI Assistant Modal */}
       <AIAssistant
         isVisible={showAIAssistant}
         onClose={() => setShowAIAssistant(false)}
@@ -601,7 +713,6 @@ const COBook = () => {
         onSummarizeProgram={handleSummarizeProgram}
       />
 
-      {/* Share Modal */}
       {showShareModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
@@ -664,13 +775,9 @@ const COBook = () => {
         </div>
       )}
 
-      {/* Footer */}
       <div className="max-w-6xl mx-auto px-6 py-8 text-center">
         <p className="text-sm text-gray-500">COBook - Interactive COBOL Development Environment</p>
-        <p className="text-xs text-gray-400 mt-1">Powered by GnuCOBOL • AI-Assisted • Real-time Collaboration • Interactive Visualizations</p>
-        <div className="mt-2 text-xs text-gray-400">
-          Use Ctrl+B for bold, Ctrl+I for italic, Ctrl+` for code, or type **bold**, *italic*, `code`
-        </div>
+        <p className="text-xs text-gray-400 mt-1">Powered by GnuCOBOL • AI-Assisted • Real-time Collaboration • Interactive Visualizations • Interactive I/O</p>
       </div>
     </div>
   );

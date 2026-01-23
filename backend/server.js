@@ -1,3 +1,4 @@
+// backend/server.js (fixed double response issue)
 require('dotenv').config();
 
 const express = require('express');
@@ -5,7 +6,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const WebSocket = require('ws');
 const http = require('http');
-const { execCobol } = require('./cobol-runner');
+const { execCobol, provideInput } = require('./cobol-runner');
 const { getAIAssistance } = require('./ai-assistant');
 const {
   generateFlowchart,
@@ -21,27 +22,26 @@ const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 5000;
 
-// Middleware with increased limits for large programs
+const activeSessions = new Map();
+
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
-// Store active connections and notebooks
 const connections = new Map();
 const notebooks = new Map();
 
-// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     message: 'COBook API is running',
     connections: connections.size,
     notebooks: notebooks.size,
+    activeSessions: activeSessions.size,
     timestamp: new Date().toISOString()
   });
 });
 
-// Execute COBOL code
 app.post('/api/execute', async (req, res) => {
   const { code, cellId } = req.body;
 
@@ -54,28 +54,137 @@ app.post('/api/execute', async (req, res) => {
   console.log(`📏 Code size: ${code.length} characters`);
   console.log(`${'='.repeat(60)}`);
 
+  const startTime = Date.now();
+  let responseSent = false;
+
   try {
-    const result = await execCobol(code);
+    const onInputNeeded = (sessionId, output) => {
+      if (responseSent) {
+        console.log('⚠️  Response already sent, ignoring input callback');
+        return;
+      }
 
-    res.json({
-      success: !result.error,
-      output: result.output,
-      error: result.error,
-      executionTime: result.executionTime
-    });
+      activeSessions.set(cellId, sessionId);
+      responseSent = true;
+      
+      console.log(`⌨️  Input needed for cell ${cellId}, session ${sessionId}`);
 
-    console.log(`✓ Response sent - Success: ${!result.error}`);
+      res.json({
+        success: true,
+        output: output,
+        needsInput: true,
+        sessionId: sessionId,
+        executionTime: Date.now() - startTime
+      });
+    };
+
+    const result = await execCobol(code, onInputNeeded);
+
+    // Only send response if we haven't already sent one
+    if (!responseSent) {
+      responseSent = true;
+
+      res.json({
+        success: !result.error,
+        output: result.output,
+        error: result.error,
+        executionTime: result.executionTime,
+        needsInput: false,
+        sessionId: null
+      });
+
+      console.log(`✓ Response sent - Success: ${!result.error}`);
+    } else {
+      console.log(`✓ Response already sent (input needed)`);
+    }
 
   } catch (error) {
     console.error('❌ Execution error:', error);
+    
+    if (!responseSent) {
+      responseSent = true;
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        needsInput: false,
+        sessionId: null
+      });
+    }
+  }
+});
+
+app.post('/api/provide-input', async (req, res) => {
+  const { cellId, input, sessionId } = req.body;
+
+  if (input === undefined || input === null) {
+    return res.status(400).json({ error: 'Missing input' });
+  }
+
+  if (!cellId && !sessionId) {
+    return res.status(400).json({ error: 'Missing session identifier' });
+  }
+
+  const programSessionId = sessionId || activeSessions.get(cellId);
+
+  if (!programSessionId) {
+    return res.status(400).json({ 
+      error: 'No active program waiting for input',
+      debug: { 
+        cellId, 
+        sessionId, 
+        activeSessions: Array.from(activeSessions.keys()) 
+      }
+    });
+  }
+
+  console.log(`📝 Providing input to session ${programSessionId}: "${input}"`);
+
+  try {
+    const result = await provideInput(programSessionId, input);
+
+    // Only delete session if program is complete (not waiting for more input)
+    if (!result.needsInput) {
+      activeSessions.delete(cellId);
+    } else {
+      // Keep session active for next input
+      console.log(`⌨️  Program still needs more input, keeping session active`);
+    }
+
+    if (!result.success) {
+      activeSessions.delete(cellId);
+      return res.status(200).json({
+        success: false,
+        error: result.error || 'Program terminated unexpectedly',
+        output: result.output || '',
+        stderr: result.stderr || '',
+        needsInput: false,
+        sessionId: null
+      });
+    }
+
+    res.json({
+      success: true,
+      output: result.output,
+      error: null,
+      stderr: result.stderr || '',
+      needsInput: result.needsInput || false,
+      sessionId: result.needsInput ? result.sessionId : null
+    });
+
+    console.log(`✓ Input processed - Need more input: ${result.needsInput || false}`);
+
+  } catch (error) {
+    console.error('❌ Error providing input:', error);
+    activeSessions.delete(cellId);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
+      needsInput: false,
+      sessionId: null
     });
   }
 });
 
-// AI Assistant endpoint
 app.post('/api/ai-assist', async (req, res) => {
   const { prompt, context, cellType, feature } = req.body;
 
@@ -107,7 +216,6 @@ app.post('/api/ai-assist', async (req, res) => {
   }
 });
 
-// Visualization endpoints
 app.post('/api/visualization/flowchart', async (req, res) => {
   const { code } = req.body;
 
@@ -233,7 +341,6 @@ app.post('/api/visualization/trace', async (req, res) => {
   }
 });
 
-// Save notebook
 app.post('/api/notebooks/save', (req, res) => {
   const { id, name, cells, comments } = req.body;
 
@@ -249,7 +356,6 @@ app.post('/api/notebooks/save', (req, res) => {
   res.json({ success: true, id });
 });
 
-// Load notebook
 app.get('/api/notebooks/:id', (req, res) => {
   const notebook = notebooks.get(req.params.id);
 
@@ -261,7 +367,6 @@ app.get('/api/notebooks/:id', (req, res) => {
   }
 });
 
-// WebSocket connection for real-time collaboration
 wss.on('connection', (ws, req) => {
   const userId = req.headers['sec-websocket-key'];
   connections.set(userId, ws);
@@ -272,7 +377,6 @@ wss.on('connection', (ws, req) => {
     try {
       const data = JSON.parse(message);
 
-      // Broadcast to all other connected clients
       connections.forEach((client, id) => {
         if (id !== userId && client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify(data));
@@ -288,7 +392,6 @@ wss.on('connection', (ws, req) => {
     console.log(`🔌 Connection closed: ${userId.substring(0, 8)}... (Total: ${connections.size})`);
   });
 
-  // Send welcome message
   ws.send(JSON.stringify({
     type: 'welcome',
     userId,
@@ -296,7 +399,6 @@ wss.on('connection', (ws, req) => {
   }));
 });
 
-// Error handling middleware
 app.use((error, req, res, next) => {
   console.error('Server error:', error);
   res.status(500).json({
@@ -305,7 +407,6 @@ app.use((error, req, res, next) => {
   });
 });
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -326,11 +427,13 @@ server.listen(PORT, () => {
 ║  ⏱️  Compile Time:   60s timeout                   ║
 ║  ⚡ Execute Time:   30s timeout                    ║
 ║  📊 Visualization:  Flowchart, Data Flow, Memory   ║
+║  🔢 Interactive I/O: ✓ Enabled                      ║
 ╚════════════════════════════════════════════════════╝
   `);
-  
+
   console.log('\n📚 Available endpoints:');
   console.log('  POST /api/execute - Execute COBOL code');
+  console.log('  POST /api/provide-input - Provide input to waiting program');
   console.log('  POST /api/ai-assist - Get AI assistance');
   console.log('  POST /api/visualization/flowchart - Generate flowchart');
   console.log('  POST /api/visualization/dataflow - Generate data flow');
@@ -342,7 +445,6 @@ server.listen(PORT, () => {
   console.log('  GET  /api/notebooks/:id - Load notebook');
 });
 
-// Graceful shutdown
 process.on('SIGINT', () => {
   console.log('\n\n🛑 Shutting down gracefully...');
 
@@ -369,7 +471,6 @@ process.on('SIGTERM', () => {
   });
 });
 
-// Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
   process.exit(1);
