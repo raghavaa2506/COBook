@@ -1,27 +1,27 @@
 IDENTIFICATION DIVISION.
-PROGRAM-ID. CALC.
+PROGRAM-ID. FIBO.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-01 A      PIC 9(3).
-01 B      PIC 9(3).
-01 CH     PIC X.
-01 RES    PIC 9(4).
+01 N   PIC 9(3).
+01 A   PIC 9(5) VALUE 0.
+01 B   PIC 9(5) VALUE 1.
+01 C   PIC 9(5).
+01 I   PIC 9(3).
 
 PROCEDURE DIVISION.
-    DISPLAY "Enter first number: ".
-    ACCEPT A.
-    DISPLAY "Enter second number: ".
-    ACCEPT B.
-    DISPLAY "Enter operation (+ or -): ".
-    ACCEPT CH.
+    DISPLAY "How many terms?".
+    ACCEPT N.
 
-    IF CH = "+"
-        COMPUTE RES = A + B
-    ELSE
-        COMPUTE RES = A - B
-    END-IF.
+    DISPLAY A.
+    DISPLAY B.
 
-    DISPLAY "Result: " RES.
+    PERFORM VARYING I FROM 3 BY 1 UNTIL I > N
+        COMPUTE C = A + B
+        DISPLAY C
+        MOVE B TO A
+        MOVE C TO B
+    END-PERFORM.
+
     STOP RUN.
 

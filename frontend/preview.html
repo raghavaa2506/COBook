@@ -368,46 +368,31 @@
                     
         <div class="flow-step">
             <div class="step-number io">1</div>
-            <div class="step-content">DISPLAY "Enter first number: "</div>
+            <div class="step-content">DISPLAY "How many terms?"</div>
         </div>
         
         <div class="flow-step">
             <div class="step-number input">2</div>
-            <div class="step-content">ACCEPT A</div>
+            <div class="step-content">ACCEPT N</div>
         </div>
         
         <div class="flow-step">
             <div class="step-number io">3</div>
-            <div class="step-content">DISPLAY "Enter second number: "</div>
+            <div class="step-content">DISPLAY A</div>
         </div>
         
         <div class="flow-step">
-            <div class="step-number input">4</div>
-            <div class="step-content">ACCEPT B</div>
+            <div class="step-number io">4</div>
+            <div class="step-content">DISPLAY B</div>
         </div>
         
         <div class="flow-step">
-            <div class="step-number io">5</div>
-            <div class="step-content">DISPLAY "Enter operation (+ or -): "</div>
+            <div class="step-number normal">5</div>
+            <div class="step-content">END-PERFORM</div>
         </div>
         
         <div class="flow-step">
-            <div class="step-number input">6</div>
-            <div class="step-content">ACCEPT CH</div>
-        </div>
-        
-        <div class="flow-step">
-            <div class="step-number normal">7</div>
-            <div class="step-content">END-IF</div>
-        </div>
-        
-        <div class="flow-step">
-            <div class="step-number io">8</div>
-            <div class="step-content">DISPLAY "Result: " RES</div>
-        </div>
-        
-        <div class="flow-step">
-            <div class="step-number end">9</div>
+            <div class="step-number end">6</div>
             <div class="step-content">STOP RUN</div>
         </div>
         
@@ -429,27 +414,7 @@
                     </div>
                     <div class="dataflow-content">
                         <div class="dataflow-title">Input</div>
-                        <div class="dataflow-desc">Accept value into A</div>
-                    </div>
-                </div>
-                
-                <div class="dataflow-item">
-                    <div class="dataflow-icon input">
-                        <i class="fas fa-keyboard"></i>
-                    </div>
-                    <div class="dataflow-content">
-                        <div class="dataflow-title">Input</div>
-                        <div class="dataflow-desc">Accept value into B</div>
-                    </div>
-                </div>
-                
-                <div class="dataflow-item">
-                    <div class="dataflow-icon input">
-                        <i class="fas fa-keyboard"></i>
-                    </div>
-                    <div class="dataflow-content">
-                        <div class="dataflow-title">Input</div>
-                        <div class="dataflow-desc">Accept value into CH</div>
+                        <div class="dataflow-desc">Accept value into N</div>
                     </div>
                 </div>
                 
@@ -474,26 +439,32 @@
                     <tbody>
                         
         <tr>
-            <td>A</td>
+            <td>N</td>
             <td>9(3)</td>
             <td>N/A</td>
+        </tr>
+        
+        <tr>
+            <td>A</td>
+            <td>9(5)</td>
+            <td>0</td>
         </tr>
         
         <tr>
             <td>B</td>
+            <td>9(5)</td>
+            <td>1</td>
+        </tr>
+        
+        <tr>
+            <td>C</td>
+            <td>9(5)</td>
+            <td>N/A</td>
+        </tr>
+        
+        <tr>
+            <td>I</td>
             <td>9(3)</td>
-            <td>N/A</td>
-        </tr>
-        
-        <tr>
-            <td>CH</td>
-            <td>X</td>
-            <td>N/A</td>
-        </tr>
-        
-        <tr>
-            <td>RES</td>
-            <td>9(4)</td>
             <td>N/A</td>
         </tr>
         
@@ -512,46 +483,31 @@
                     
         <div class="timeline-item">
             <div class="timeline-step">Step 1</div>
-            <div class="timeline-content">DISPLAY "Enter first number: "</div>
+            <div class="timeline-content">DISPLAY "How many terms?"</div>
         </div>
         
         <div class="timeline-item">
             <div class="timeline-step">Step 2</div>
-            <div class="timeline-content">ACCEPT A</div>
+            <div class="timeline-content">ACCEPT N</div>
         </div>
         
         <div class="timeline-item">
             <div class="timeline-step">Step 3</div>
-            <div class="timeline-content">DISPLAY "Enter second number: "</div>
+            <div class="timeline-content">DISPLAY A</div>
         </div>
         
         <div class="timeline-item">
             <div class="timeline-step">Step 4</div>
-            <div class="timeline-content">ACCEPT B</div>
+            <div class="timeline-content">DISPLAY B</div>
         </div>
         
         <div class="timeline-item">
             <div class="timeline-step">Step 5</div>
-            <div class="timeline-content">DISPLAY "Enter operation (+ or -): "</div>
+            <div class="timeline-content">END-PERFORM</div>
         </div>
         
         <div class="timeline-item">
             <div class="timeline-step">Step 6</div>
-            <div class="timeline-content">ACCEPT CH</div>
-        </div>
-        
-        <div class="timeline-item">
-            <div class="timeline-step">Step 7</div>
-            <div class="timeline-content">END-IF</div>
-        </div>
-        
-        <div class="timeline-item">
-            <div class="timeline-step">Step 8</div>
-            <div class="timeline-content">DISPLAY "Result: " RES</div>
-        </div>
-        
-        <div class="timeline-item">
-            <div class="timeline-step">Step 9</div>
             <div class="timeline-content">STOP RUN</div>
         </div>
         
