@@ -3,7 +3,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Play, Plus, Trash2, Save, Download, Upload, Code, Terminal, FileText, Share2, MessageSquare, Sparkles, Type, Settings, Users, PlayCircle, StopCircle, ChevronDown, Copy, Link2, Edit3, Hash, Braces, File, Zap, User, Clock, Send, X, Check } from 'lucide-react';
 import Cell from './components/Cell';
 import AIAssistant from './components/AIAssistant';
-import VisualizationPanel from './components/VisualizationPanel';
 
 const COBook = () => {
   const [cells, setCells] = useState([
@@ -51,9 +50,6 @@ const COBook = () => {
   const [comments, setComments] = useState({});
   const [showComments, setShowComments] = useState({});
   const [copiedLink, setCopiedLink] = useState(false);
-  const [showVisualization, setShowVisualization] = useState({});
-  const [activeVisualizationCell, setActiveVisualizationCell] = useState(null);
-
   const addCell = (type = 'code', afterId = null) => {
     const newCell = {
       id: nextId,
@@ -263,6 +259,37 @@ const COBook = () => {
     setSelectedCell(cellId);
     setShowAIAssistant(true);
   };
+
+  const handleVisualization = async (cellId) => {
+  const cell = cells.find(c => c.id === cellId);
+  if (!cell || cell.type !== 'code') return;
+
+  try {
+    const response = await fetch('http://localhost:5001/api/visualize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: cell.content })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Open HTML in a new tab
+      const newWindow = window.open('', '_blank');
+      if (newWindow) {
+        newWindow.document.write(data.html);
+        newWindow.document.close();
+        newWindow.document.title = 'COBOL Program Visualization';
+      } else {
+        alert('Please allow pop-ups to view the visualization');
+      }
+    } else {
+      alert(`Error: ${data.error || 'Failed to generate visualization'}`);
+    }
+  } catch (err) {
+    alert(`Connection error: ${err.message}`);
+  }
+};
 
   const handleGenerateCode = async (prompt) => {
     try {
@@ -675,33 +702,36 @@ const COBook = () => {
         <div className="space-y-6">
           {cells.map((cell, index) => (
             <div key={cell.id}>
-              <Cell
-                cell={cell}
-                index={index}
-                onUpdateContent={updateContent}
-                onRunCell={runCell}
-                onDeleteCell={deleteCell}
-                onAddCell={addCell}
-                onShowAIAssistant={showAIAssistantForCell}
-                onToggleVisualization={toggleVisualization}
-                onProvideInput={provideInputToCell}
-                comments={comments}
-                onToggleComments={toggleComments}
-                onAddComment={addComment}
-              />
-
-              {cell.type === 'code' && showVisualization[cell.id] && (
-                <VisualizationPanel
-                  code={cell.content}
-                  isVisible={activeVisualizationCell === cell.id}
-                  onClose={() => toggleVisualization(cell.id, false)}
+              {cell.type === 'code' ? (
+                <CodeCell
+                  cell={cell}
+                  index={index}
+                  onUpdateContent={updateContent}
+                  onRunCell={runCell}
+                  onDeleteCell={deleteCell}
+                  onAddCell={addCell}
+                  onShowAIAssistant={showAIAssistantForCell}
+                  onToggleVisualization={handleVisualization}
+                />
+              ) : (
+                <TextCell
+                  cell={cell}
+                  index={index}
+                  onUpdateContent={updateContent}
+                  onDeleteCell={deleteCell}
+                  onAddCell={addCell}
+                  comments={comments}
+                  onToggleComments={toggleComments}
+                  onAddComment={addComment}
                 />
               )}
+              
+              {/* Visualization Panel */}
+              
             </div>
           ))}
         </div>
       </div>
-
       <AIAssistant
         isVisible={showAIAssistant}
         onClose={() => setShowAIAssistant(false)}
