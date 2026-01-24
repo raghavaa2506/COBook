@@ -1,8 +1,18 @@
+/******************************************************************************
+
+                            Online Java Compiler.
+                Code, Compile, Run and Debug java program online.
+Write your code in this editor and press "Run" button to execute it.
+
+*******************************************************************************/
 // frontend/src/App.js (fixed error handling)
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Plus, Trash2, Save, Download, Upload, Code, Terminal, FileText, Share2, MessageSquare, Sparkles, Type, Settings, Users, PlayCircle, StopCircle, ChevronDown, Copy, Link2, Edit3, Hash, Braces, File, Zap, User, Clock, Send, X, Check } from 'lucide-react';
 import Cell from './components/Cell';
 import AIAssistant from './components/AIAssistant';
+import CodeCell from './components/CodeCell';
+import TextCell from './components/TextCell';
+import VisualizationPanel from './components/VisualizationPanel';
 
 const COBook = () => {
   const [cells, setCells] = useState([
@@ -50,6 +60,38 @@ const COBook = () => {
   const [comments, setComments] = useState({});
   const [showComments, setShowComments] = useState({});
   const [copiedLink, setCopiedLink] = useState(false);
+
+  const handleVisualization = async (cellId) => {
+  const cell = cells.find(c => c.id === cellId);
+  if (!cell || cell.type !== 'code') return;
+
+  try {
+    const response = await fetch('https://cobook-1.onrender.com/api/visualize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: cell.content })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Open HTML in a new tab
+      const newWindow = window.open('', '_blank');
+      if (newWindow) {
+        newWindow.document.write(data.html);
+        newWindow.document.close();
+        newWindow.document.title = 'COBOL Program Visualization';
+      } else {
+        alert('Please allow pop-ups to view the visualization');
+      }
+    } else {
+      alert(`Error: ${data.error || 'Failed to generate visualization'}`);
+    }
+  } catch (err) {
+    alert(`Connection error: ${err.message}`);
+  }
+};
+
   const addCell = (type = 'code', afterId = null) => {
     const newCell = {
       id: nextId,
@@ -98,12 +140,12 @@ const COBook = () => {
     if (!cell || cell.type !== 'code') return;
 
     setCells(cells.map(c =>
-      c.id === id ? { 
-        ...c, 
-        isRunning: true, 
-        output: 'Compiling COBOL program...', 
-        needsInput: false, 
-        sessionId: null 
+      c.id === id ? {
+        ...c,
+        isRunning: true,
+        output: 'Compiling COBOL program...',
+        needsInput: false,
+        sessionId: null
       } : c
     ));
 
@@ -195,7 +237,7 @@ const COBook = () => {
       if (data.success) {
         // Get new output after the input
         const newOutput = data.output || cell.output;
-        
+
         if (data.needsInput) {
           // Program needs more input
           setCells(cells.map(c =>
@@ -209,7 +251,7 @@ const COBook = () => {
         } else {
           // Program completed
           const finalOutput = newOutput + `\n${'─'.repeat(50)}\n\nProgram completed\nExit code: 0`;
-          
+
           setCells(cells.map(c =>
             c.id === cellId ? {
               ...c,
@@ -223,7 +265,7 @@ const COBook = () => {
         // Error occurred
         const errorDetails = data.error || data.stderr || 'Unknown error occurred';
         const errorOutput = (data.output || cell.output) + `\n${'─'.repeat(50)}\n\n❌ Error: ${errorDetails}\n\nStderr: ${data.stderr || 'none'}`;
-        
+
         setCells(cells.map(c =>
           c.id === cellId ? {
             ...c,
@@ -259,37 +301,6 @@ const COBook = () => {
     setSelectedCell(cellId);
     setShowAIAssistant(true);
   };
-
-  const handleVisualization = async (cellId) => {
-  const cell = cells.find(c => c.id === cellId);
-  if (!cell || cell.type !== 'code') return;
-
-  try {
-    const response = await fetch('http://localhost:5001/api/visualize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: cell.content })
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      // Open HTML in a new tab
-      const newWindow = window.open('', '_blank');
-      if (newWindow) {
-        newWindow.document.write(data.html);
-        newWindow.document.close();
-        newWindow.document.title = 'COBOL Program Visualization';
-      } else {
-        alert('Please allow pop-ups to view the visualization');
-      }
-    } else {
-      alert(`Error: ${data.error || 'Failed to generate visualization'}`);
-    }
-  } catch (err) {
-    alert(`Connection error: ${err.message}`);
-  }
-};
 
   const handleGenerateCode = async (prompt) => {
     try {
@@ -505,18 +516,6 @@ const COBook = () => {
     }
   };
 
-  const toggleVisualization = (cellId, show) => {
-    setShowVisualization(prev => ({
-      ...prev,
-      [cellId]: show
-    }));
-
-    if (show) {
-      setActiveVisualizationCell(cellId);
-    } else if (activeVisualizationCell === cellId) {
-      setActiveVisualizationCell(null);
-    }
-  };
 
   const addComment = (cellId, comment) => {
     setComments({
@@ -698,6 +697,7 @@ const COBook = () => {
         </div>
       </div>
 
+      {/* Main Content */}
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="space-y-6">
           {cells.map((cell, index) => (
@@ -712,6 +712,10 @@ const COBook = () => {
                   onAddCell={addCell}
                   onShowAIAssistant={showAIAssistantForCell}
                   onToggleVisualization={handleVisualization}
+                onProvideInput={provideInputToCell}
+                comments={comments}
+                onToggleComments={toggleComments}
+                onAddComment={addComment}
                 />
               ) : (
                 <TextCell
@@ -725,13 +729,15 @@ const COBook = () => {
                   onAddComment={addComment}
                 />
               )}
-              
+             
               {/* Visualization Panel */}
-              
+             
             </div>
           ))}
         </div>
       </div>
+
+
       <AIAssistant
         isVisible={showAIAssistant}
         onClose={() => setShowAIAssistant(false)}
