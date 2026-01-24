@@ -1,4 +1,12 @@
 import re
+from urllib import request
+import json
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import re
+
+app = Flask(__name__)
+CORS(app)
 
 def parse_cobol(code):
     divisions = {}
@@ -39,6 +47,42 @@ def classify(stmt):
     if s.startswith("ACCEPT"):
         return "input"
     return "normal"
+
+# Add this new endpoint to your Flask app
+@app.route('/api/visualize', methods=['POST', 'OPTIONS'])
+def visualize_code():
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    try:
+        # Get JSON data from request body
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        code = data.get('code', '')
+        
+        if not code:
+            return jsonify({'success': False, 'error': 'No code provided'}), 400
+        
+        # Generate the HTML visualization
+        html = generate_html_visualization(code)
+        
+        return jsonify({
+            'success': True,
+            'html': html
+        })
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error in visualize_code: {error_details}")
+        return jsonify({
+            'success': False, 
+            'error': str(e),
+            'details': error_details
+        }), 500
 
 
 def generate_html_visualization(code):
@@ -591,6 +635,8 @@ def generate_html_visualization(code):
 
 
 if __name__ == "__main__":
+    app.run(debug=True, port=5001, host='0.0.0.0')
+
     with open("program.cob") as f:
         code = f.read()
 
