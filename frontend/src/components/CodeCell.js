@@ -1,4 +1,3 @@
-// frontend/src/components/CodeCell.js (updated version with improved I/O)
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Trash2, Plus, Terminal, Zap, BarChart3, ChevronDown, ChevronUp, Send } from 'lucide-react';
 
@@ -16,6 +15,8 @@ const CodeCell = ({
   const [showOutput, setShowOutput] = useState(true);
   const [showVisualization, setShowVisualization] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [inputHistory, setInputHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   const textareaRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -43,6 +44,11 @@ const CodeCell = ({
   const handleInputSubmit = async () => {
     if (!inputValue.trim() && inputValue !== '') return;
 
+    // Add to input history
+    const newHistory = [...inputHistory, inputValue];
+    setInputHistory(newHistory);
+    setHistoryIndex(-1);
+
     try {
       await onProvideInput(cell.id, inputValue);
       setInputValue('');
@@ -55,6 +61,23 @@ const CodeCell = ({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleInputSubmit();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (inputHistory.length > 0) {
+        const newIndex = historyIndex < inputHistory.length - 1 ? historyIndex + 1 : historyIndex;
+        setHistoryIndex(newIndex);
+        setInputValue(inputHistory[inputHistory.length - 1 - newIndex]);
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (historyIndex > 0) {
+        const newIndex = historyIndex - 1;
+        setHistoryIndex(newIndex);
+        setInputValue(inputHistory[inputHistory.length - 1 - newIndex]);
+      } else if (historyIndex === 0) {
+        setHistoryIndex(-1);
+        setInputValue('');
+      }
     }
   };
 
@@ -214,7 +237,7 @@ const CodeCell = ({
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
-                    Tip: Press Enter to send input quickly
+                    Tip: Press Enter to send input quickly, use Up/Down arrows for input history
                   </p>
                 </div>
               )}

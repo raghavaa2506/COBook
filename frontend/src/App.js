@@ -1,14 +1,19 @@
-/******************************************************************************
-
-                            Online Java Compiler.
-                Code, Compile, Run and Debug java program online.
-Write your code in this editor and press "Run" button to execute it.
-
-*******************************************************************************/
-// frontend/src/App.js (fixed error handling)
-// frontend/src/App.js (cleaned up version)
-import React, { useState, useRef, useEffect } from 'react';
-import { Play, Plus, Trash2, Save, Download, Upload, Code, Terminal, FileText, Share2, MessageSquare, Sparkles, Type, Settings, Users, PlayCircle, StopCircle, ChevronDown, Copy, Link2, Edit3, Hash, Braces, File, Zap, User, Clock, Send, X, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  Play,
+  Plus,
+  Trash2,
+  Save,
+  Download,
+  Upload,
+  Code,
+  FileText,
+  Users,
+  PlayCircle,
+  Edit3,
+  Braces,
+  Zap
+} from 'lucide-react';
 import Cell from './components/Cell';
 import AIAssistant from './components/AIAssistant';
 import CodeCell from './components/CodeCell';
@@ -74,7 +79,6 @@ const COBook = () => {
       const data = await response.json();
 
       if (data.success) {
-        // Open HTML in a new tab
         const newWindow = window.open('', '_blank');
         if (newWindow) {
           newWindow.document.write(data.html);
@@ -149,7 +153,7 @@ const COBook = () => {
     ));
 
     try {
-      const response = await fetch('http://localhost:5000/api/execute', {
+      const response = await fetch('https://cobook-5uuf.onrender.com/api/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: cell.content, cellId: id })
@@ -196,7 +200,7 @@ const COBook = () => {
         c.id === id ? {
           ...c,
           isRunning: false,
-          output: `Connection Error\n\nCouldn't connect to backend server.\nMake sure the server is running on http://localhost:5000\n\nError: ${error.message}`,
+          output: `Connection Error\n\nCouldn't connect to backend server.\nMake sure the server is running\n\nError: ${error.message}`,
           needsInput: false,
           sessionId: null
         } : c
@@ -220,7 +224,7 @@ const COBook = () => {
     ));
 
     try {
-      const response = await fetch('http://localhost:5000/api/provide-input', {
+      const response = await fetch('https://cobook-5uuf.onrender.com/api/provide-input', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -298,7 +302,7 @@ const COBook = () => {
 
   const handleGenerateCode = async (prompt) => {
     try {
-      const response = await fetch('http://localhost:5000/api/ai-assist', {
+      const response = await fetch('https://cobook-5uuf.onrender.com/api/ai-assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -342,7 +346,7 @@ const COBook = () => {
     if (!cell) throw new Error('No cell selected');
 
     try {
-      const response = await fetch('http://localhost:5000/api/ai-assist', {
+      const response = await fetch('https://cobook-5uuf.onrender.com/api/ai-assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -389,7 +393,7 @@ const COBook = () => {
     if (!cell) throw new Error('No cell selected');
 
     try {
-      const response = await fetch('http://localhost:5000/api/ai-assist', {
+      const response = await fetch('https://cobook-5uuf.onrender.com/api/ai-assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -424,7 +428,7 @@ const COBook = () => {
     if (!cell) throw new Error('No cell selected');
 
     try {
-      const response = await fetch('http://localhost:5000/api/ai-assist', {
+      const response = await fetch('https://cobook-5uuf.onrender.com/api/ai-assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -471,7 +475,7 @@ const COBook = () => {
       const codeCells = cells.filter(c => c.type === 'code');
       const combinedCode = codeCells.map(c => c.content).join('\n\n');
 
-      const response = await fetch('http://localhost:5000/api/ai-assist', {
+      const response = await fetch('https://cobook-5uuf.onrender.com/api/ai-assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -676,7 +680,6 @@ const COBook = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="space-y-6">
           {cells.map((cell, index) => (
