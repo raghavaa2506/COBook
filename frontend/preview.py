@@ -1,9 +1,6 @@
 import re
-from urllib import request
-import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import re
 
 app = Flask(__name__)
 CORS(app)
@@ -25,10 +22,22 @@ def parse_cobol(code):
 
 
 def extract_statements(proc_lines):
+    """Extract statements from procedure division - improved version"""
     stmts = []
     for l in proc_lines:
-        if l.endswith('.'):
-            stmts.append(l.replace('.', '').strip())
+        # Skip paragraph names (lines ending with period but starting with a word followed by period)
+        if re.match(r'^\w+\.$', l.strip()):
+            continue
+        # Skip comments
+        if l.strip().startswith('*>'):
+            continue
+        # Include all non-empty lines (whether they end with period or not)
+        if l.strip():
+            # Remove trailing period if present
+            stmt = l.strip()
+            if stmt.endswith('.'):
+                stmt = stmt[:-1]
+            stmts.append(stmt)
     return stmts
 
 
@@ -48,28 +57,27 @@ def classify(stmt):
         return "input"
     return "normal"
 
-# Add this new endpoint to your Flask app
 @app.route('/api/visualize', methods=['POST', 'OPTIONS'])
 def visualize_code():
     # Handle CORS preflight
     if request.method == 'OPTIONS':
         return '', 204
-    
+   
     try:
         # Get JSON data from request body
         data = request.get_json()
-        
+       
         if not data:
             return jsonify({'success': False, 'error': 'No data provided'}), 400
-        
+       
         code = data.get('code', '')
-        
+       
         if not code:
             return jsonify({'success': False, 'error': 'No code provided'}), 400
-        
+       
         # Generate the HTML visualization
         html = generate_html_visualization(code)
-        
+       
         return jsonify({
             'success': True,
             'html': html
@@ -79,7 +87,7 @@ def visualize_code():
         error_details = traceback.format_exc()
         print(f"Error in visualize_code: {error_details}")
         return jsonify({
-            'success': False, 
+            'success': False,
             'error': str(e),
             'details': error_details
         }), 500
@@ -89,19 +97,26 @@ def generate_html_visualization(code):
     divs = parse_cobol(code)
     proc = divs.get("PROCEDURE", [])
     stmts = extract_statements(proc)
-    
-    # Extract variables from DATA division
+   
+    # Extract variables from DATA division - IMPROVED REGEX
     variables = []
     if "DATA" in divs:
-        var_pattern = re.compile(r'^\s*01\s+(\w+)\s+PIC\s+([^\s.]+)(?:\s+VALUE\s+([^\s.]+))?', re.I)
+        # Updated pattern to handle hyphens in names and parentheses in PIC clauses
+        var_pattern = re.compile(
+            r'01\s+([\w-]+)\s+PIC\s+([\w()]+)\s*(?:VALUE\s+(.+?))?\.?\s*$',
+            re.I
+        )
         for l in divs["DATA"]:
             match = var_pattern.match(l)
             if match:
                 var_name = match.group(1)
                 pic_type = match.group(2)
-                init_value = match.group(3) if match.group(3) else "N/A"
+                init_value = match.group(3).strip() if match.group(3) else "N/A"
+                # Remove quotes from string values
+                if init_value.startswith('"') and init_value.endswith('"'):
+                    init_value = init_value[1:-1]
                 variables.append({"name": var_name, "type": pic_type, "value": init_value})
-    
+   
     # Create HTML template with escaped curly braces
     html_template = """
 <!DOCTYPE html>
@@ -122,13 +137,13 @@ def generate_html_visualization(code):
             --card-bg: rgba(30, 41, 59, 0.7);
             --border: rgba(148, 163, 184, 0.1);
         }}
-        
+       
         * {{
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }}
-        
+       
         body {{
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
@@ -137,18 +152,18 @@ def generate_html_visualization(code):
             padding: 2rem;
             line-height: 1.6;
         }}
-        
+       
         .container {{
             max-width: 1400px;
             margin: 0 auto;
         }}
-        
+       
         header {{
             text-align: center;
             margin-bottom: 3rem;
             animation: fadeInDown 0.8s ease-out;
         }}
-        
+       
         h1 {{
             font-size: 2.5rem;
             margin-bottom: 0.5rem;
@@ -157,19 +172,19 @@ def generate_html_visualization(code):
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }}
-        
+       
         .subtitle {{
             color: #94a3b8;
             font-size: 1.1rem;
         }}
-        
+       
         .dashboard {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 1.5rem;
             margin-bottom: 2rem;
         }}
-        
+       
         .card {{
             background: var(--card-bg);
             backdrop-filter: blur(10px);
@@ -181,12 +196,12 @@ def generate_html_visualization(code):
             animation: fadeInUp 0.8s ease-out forwards;
             opacity: 0;
         }}
-        
+       
         .card:hover {{
             transform: translateY(-5px);
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
         }}
-        
+       
         .card-header {{
             display: flex;
             align-items: center;
@@ -194,7 +209,7 @@ def generate_html_visualization(code):
             padding-bottom: 0.75rem;
             border-bottom: 1px solid var(--border);
         }}
-        
+       
         .card-icon {{
             width: 40px;
             height: 40px;
@@ -205,20 +220,26 @@ def generate_html_visualization(code):
             margin-right: 1rem;
             font-size: 1.2rem;
         }}
-        
+       
         .card-title {{
             font-size: 1.25rem;
             font-weight: 600;
         }}
-        
+       
         .division-card {{
             grid-column: span 3;
+            display: flex;
+            flex-direction: column;
+        }}
+       
+        .division-pills {{
             display: flex;
             gap: 1rem;
             overflow-x: auto;
             padding-bottom: 0.5rem;
+            flex-wrap: wrap;
         }}
-        
+       
         .division-pill {{
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: white;
@@ -232,21 +253,21 @@ def generate_html_visualization(code):
             box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
             transition: transform 0.2s ease;
         }}
-        
+       
         .division-pill:hover {{
             transform: scale(1.05);
         }}
-        
+       
         .flowchart-card {{
             grid-column: span 2;
         }}
-        
+       
         .flowchart-steps {{
             display: flex;
             flex-direction: column;
             gap: 1rem;
         }}
-        
+       
         .flow-step {{
             display: flex;
             align-items: center;
@@ -254,7 +275,7 @@ def generate_html_visualization(code):
             border-radius: 8px;
             position: relative;
         }}
-        
+       
         .flow-step::after {{
             content: '';
             position: absolute;
@@ -265,11 +286,11 @@ def generate_html_visualization(code):
             height: 1rem;
             background: var(--border);
         }}
-        
+       
         .flow-step:last-child::after {{
             display: none;
         }}
-        
+       
         .step-number {{
             width: 30px;
             height: 30px;
@@ -281,15 +302,16 @@ def generate_html_visualization(code):
             font-weight: 600;
             font-size: 0.9rem;
         }}
-        
+       
         .step-content {{
             flex: 1;
+            word-break: break-word;
         }}
-        
+       
         .dataflow-card {{
             grid-column: span 1;
         }}
-        
+       
         .dataflow-item {{
             display: flex;
             align-items: center;
@@ -298,7 +320,7 @@ def generate_html_visualization(code):
             border-radius: 8px;
             background: rgba(15, 23, 42, 0.5);
         }}
-        
+       
         .dataflow-icon {{
             width: 40px;
             height: 40px;
@@ -307,48 +329,50 @@ def generate_html_visualization(code):
             align-items: center;
             justify-content: center;
             margin-right: 1rem;
+            flex-shrink: 0;
         }}
-        
+       
         .dataflow-content {{
             flex: 1;
         }}
-        
+       
         .dataflow-title {{
             font-weight: 600;
             margin-bottom: 0.25rem;
         }}
-        
+       
         .dataflow-desc {{
             font-size: 0.9rem;
             color: #94a3b8;
+            word-break: break-word;
         }}
-        
+       
         .memory-table {{
             width: 100%;
             border-collapse: collapse;
         }}
-        
+       
         .memory-table th,
         .memory-table td {{
             padding: 0.75rem;
             text-align: left;
             border-bottom: 1px solid var(--border);
         }}
-        
+       
         .memory-table th {{
             font-weight: 600;
             color: var(--primary);
         }}
-        
+       
         .memory-table tr:hover {{
             background: rgba(99, 102, 241, 0.1);
         }}
-        
+       
         .execution-timeline {{
             position: relative;
             padding-left: 2rem;
         }}
-        
+       
         .execution-timeline::before {{
             content: '';
             position: absolute;
@@ -358,13 +382,13 @@ def generate_html_visualization(code):
             width: 2px;
             background: var(--border);
         }}
-        
+       
         .timeline-item {{
             position: relative;
             margin-bottom: 1.5rem;
             padding-bottom: 0.5rem;
         }}
-        
+       
         .timeline-item::before {{
             content: '';
             position: absolute;
@@ -375,20 +399,21 @@ def generate_html_visualization(code):
             border-radius: 50%;
             background: var(--primary);
         }}
-        
+       
         .timeline-step {{
             font-weight: 600;
             margin-bottom: 0.25rem;
         }}
-        
+       
         .timeline-content {{
             background: rgba(15, 23, 42, 0.5);
             padding: 0.75rem;
             border-radius: 8px;
             font-family: monospace;
             font-size: 0.9rem;
+            word-break: break-word;
         }}
-        
+       
         .io {{ background: linear-gradient(135deg, #3b82f6, #1d4ed8); }}
         .input {{ background: linear-gradient(135deg, #10b981, #047857); }}
         .decision {{ background: linear-gradient(135deg, #f59e0b, #d97706); }}
@@ -396,7 +421,7 @@ def generate_html_visualization(code):
         .call {{ background: linear-gradient(135deg, #06b6d4, #0891b2); }}
         .end {{ background: linear-gradient(135deg, #ef4444, #dc2626); }}
         .normal {{ background: linear-gradient(135deg, #64748b, #475569); }}
-        
+       
         @keyframes fadeInDown {{
             from {{
                 opacity: 0;
@@ -407,7 +432,7 @@ def generate_html_visualization(code):
                 transform: translateY(0);
             }}
         }}
-        
+       
         @keyframes fadeInUp {{
             from {{
                 opacity: 0;
@@ -418,24 +443,24 @@ def generate_html_visualization(code):
                 transform: translateY(0);
             }}
         }}
-        
+       
         .card:nth-child(1) {{ animation-delay: 0.1s; }}
         .card:nth-child(2) {{ animation-delay: 0.2s; }}
         .card:nth-child(3) {{ animation-delay: 0.3s; }}
         .card:nth-child(4) {{ animation-delay: 0.4s; }}
         .card:nth-child(5) {{ animation-delay: 0.5s; }}
-        
+       
         @media (max-width: 768px) {{
             .dashboard {{
                 grid-template-columns: 1fr;
             }}
-            
+           
             .division-card,
             .flowchart-card,
             .dataflow-card {{
                 grid-column: span 1;
             }}
-            
+           
             body {{
                 padding: 1rem;
             }}
@@ -448,7 +473,7 @@ def generate_html_visualization(code):
             <h1>COBOL Program Visualization</h1>
             <p class="subtitle">Interactive analysis of program structure and execution flow</p>
         </header>
-        
+       
         <div class="dashboard">
             <div class="card division-card">
                 <div class="card-header">
@@ -461,7 +486,7 @@ def generate_html_visualization(code):
                     {division_pills}
                 </div>
             </div>
-            
+           
             <div class="card flowchart-card">
                 <div class="card-header">
                     <div class="card-icon compute">
@@ -473,7 +498,7 @@ def generate_html_visualization(code):
                     {flowchart_steps}
                 </div>
             </div>
-            
+           
             <div class="card dataflow-card">
                 <div class="card-header">
                     <div class="card-icon call">
@@ -485,7 +510,7 @@ def generate_html_visualization(code):
                     {dataflow_items}
                 </div>
             </div>
-            
+           
             <div class="card">
                 <div class="card-header">
                     <div class="card-icon input">
@@ -506,7 +531,7 @@ def generate_html_visualization(code):
                     </tbody>
                 </table>
             </div>
-            
+           
             <div class="card">
                 <div class="card-header">
                     <div class="card-icon decision">
@@ -523,7 +548,7 @@ def generate_html_visualization(code):
 </body>
 </html>
     """
-    
+   
     # Generate division pills
     division_pills = ""
     division_icons = {
@@ -532,29 +557,32 @@ def generate_html_visualization(code):
         "DATA": "fa-database",
         "PROCEDURE": "fa-cogs"
     }
-    
+   
     for div_name in divs.keys():
         icon = division_icons.get(div_name, "fa-code")
         division_pills += f'<div class="division-pill"><i class="fas {icon}"></i> {div_name} DIVISION</div>'
-    
+   
     # Generate flowchart steps
     flowchart_steps = ""
     for i, stmt in enumerate(stmts):
         kind = classify(stmt)
-        step_content = stmt[:50] + "..." if len(stmt) > 50 else stmt
+        step_content = stmt[:60] + "..." if len(stmt) > 60 else stmt
         flowchart_steps += f"""
         <div class="flow-step">
             <div class="step-number {kind}">{i+1}</div>
             <div class="step-content">{step_content}</div>
         </div>
         """
-    
+   
     # Generate dataflow items
     dataflow_items = ""
     for i, stmt in enumerate(stmts):
         kind = classify(stmt)
         if kind == "io":
-            msg = re.findall(r"'(.*?)'", stmt)
+            # Extract both single and double quoted strings
+            msg = re.findall(r'"([^"]*)"', stmt)
+            if not msg:
+                msg = re.findall(r"'([^']*)'", stmt)
             if msg:
                 dataflow_items += f"""
                 <div class="dataflow-item">
@@ -598,7 +626,10 @@ def generate_html_visualization(code):
                     </div>
                 </div>
                 """
-    
+   
+    if not dataflow_items:
+        dataflow_items = '<div style="color: #94a3b8; font-style: italic;">No data flow operations detected</div>'
+   
     # Generate memory table rows
     memory_rows = ""
     for var in variables:
@@ -609,10 +640,10 @@ def generate_html_visualization(code):
             <td>{var['value']}</td>
         </tr>
         """
-    
+   
     if not memory_rows:
-        memory_rows = '<tr><td colspan="3">No variables defined</td></tr>'
-    
+        memory_rows = '<tr><td colspan="3" style="color: #94a3b8; font-style: italic;">No variables defined</td></tr>'
+   
     # Generate timeline items
     timeline_items = ""
     for i, stmt in enumerate(stmts):
@@ -623,7 +654,10 @@ def generate_html_visualization(code):
             <div class="timeline-content">{stmt}</div>
         </div>
         """
-    
+   
+    if not timeline_items:
+        timeline_items = '<div style="color: #94a3b8; font-style: italic;">No executable statements found</div>'
+   
     # Fill the template
     return html_template.format(
         division_pills=division_pills,
@@ -636,12 +670,3 @@ def generate_html_visualization(code):
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001, host='0.0.0.0')
-
-    with open("program.cob") as f:
-        code = f.read()
-
-    html = generate_html_visualization(code)
-    with open("preview.html", "w") as f:
-        f.write(html)
-
-    print("preview.html generated")
