@@ -106,7 +106,7 @@ COBook consists of a React-based frontend and a Node.js/Express backend with Gnu
 ### 🌐 Live Demo
 
 Visit the deployed version:  
-`https://cobook-three.vercel.app/`
+`https://co-book-final.vercel.app/`
 
 ---
 
